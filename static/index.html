@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Powered Student Enquiry Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        #title-container {
+            background-color: orange;
+            padding: 10px 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        #chat-container {
+            width: 80%;
+            max-width: 800px;
+            height: 60%;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .message {
+            margin: 5px 0;
+        }
+
+        .message.user {
+            text-align: right;
+            color: blue;
+            font-weight: bold;
+        }
+
+        .message.ai {
+            text-align: left;
+            color: green;
+        }
+
+        .message.sql-query {
+            text-align: left;
+            color: #666; /* Lighter shade of black */
+            font-style: italic; /* Italics format */
+        }
+
+        #input-container {
+            display: flex;
+            margin-top: 10px;
+            width: 51.5%;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            background-color: orange;
+            color: white;
+            border-radius: 5px;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #e68900;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr.empty-row td {
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <div id="title-container">
+        AI Powered Student Enquiry Application
+    </div>
+
+    <div id="chat-container"></div>
+
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Type your question here...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+
+        function addMessage(content, sender) {
+            const message = document.createElement('div');
+            message.classList.add('message', sender);
+            message.innerHTML = content;  // Use innerHTML to inject HTML content (like tables)
+            chatContainer.appendChild(message);
+            chatContainer.scrollTop = chatContainer.scrollHeight; // Auto-scroll to the bottom
+        }
+
+        async function sendMessage() {
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            // Add user's message to chat
+            addMessage(question, 'user');
+            userInput.value = '';
+
+            try {
+                // Send request to FastAPI
+                const response = await fetch('http://127.0.0.1:8000/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Display SQL query with updated styles
+                    addMessage(`<span class="message sql-query">${data.query}</span>`, 'sql-query');
+
+                    // Display results as an HTML table
+                    let tableHTML = '<table><thead><tr>';
+                    // Add column headers
+                    data.columns.forEach(col => {
+                        tableHTML += `<th>${col}</th>`;
+                    });
+                    tableHTML += '</tr></thead><tbody>';
+
+                    if (data.result.length === 0) {
+                        tableHTML += '<tr class="empty-row"><td colspan="' + data.columns.length + '">No results found</td></tr>';
+                    } else {
+                        // Add table rows
+                        data.result.forEach(row => {
+                            tableHTML += '<tr>';
+                            row.forEach(cell => {
+                                tableHTML += `<td>${cell}</td>`;
+                            });
+                            tableHTML += '</tr>';
+                        });
+                    }
+                    tableHTML += '</tbody></table>';
+
+                    addMessage(tableHTML, 'ai');  // Display table
+                } else {
+                    const error = await response.json();
+                    addMessage(`Error: ${error.detail}`, 'ai');
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, 'ai');
+            }
+        }
+    </script>
+</body>
+</html>
